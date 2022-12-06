@@ -1,0 +1,74 @@
+name: test
+on:
+  push:
+    branches:
+      - 'master'
+    tags:
+    - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+jobs:
+  test:
+    name: Unittests
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        dc: [dmd-latest, ldc-latest, dmd-2.096.1, ldc-1.26.0]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install D compiler
+        uses: mihails-strasuns/setup-dlang@v1.1.1
+        with:
+          compiler: ${{ matrix.dc }}
+
+      - uses: actions/cache@v1
+        with:
+          path: ~/.dub
+          key: ${{ runner.os }}-dub-${{ hashFiles('**/dub.selections.json') }}
+          restore-keys: |
+            ${{ runner.os }}-dub-
+
+      - name: Test
+        run: |
+          dub test
+
+jobs:
+  test:
+    name: Integration tests
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        dc: [dmd-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install D compiler
+        uses: mihails-strasuns/setup-dlang@v1.1.1
+        with:
+          compiler: ${{ matrix.dc }}
+
+      - uses: actions/cache@v1
+        with:
+          path: ~/.dub
+          key: ${{ runner.os }}-dub-${{ hashFiles('**/dub.selections.json') }}
+          restore-keys: |
+            ${{ runner.os }}-dub-
+
+      - name: Start containers
+        run: docker-compose -f "docker-compose.yml" up -d --build
+
+      - name: Install node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14.x
+
+      - name: Integration Test
+        run: |
+          cd test/it
+          dub test
+
+      - name: Stop containers
+        if: always()
+        run: docker-compose -f "docker-compose.yml" down
