@@ -1,6 +1,8 @@
 module client;
 
 import oras.client;
+import oras.data;
+
 import unit_threaded;
 import mir.algebraic;
 

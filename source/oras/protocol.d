@@ -22,7 +22,6 @@ struct Digest {
   string algorithm;
   //   encoded               ::= [a-zA-Z0-9=_-]+
   string encoded;
-  // and use custom serializer to serialize as int
   void serialize(S)(scope ref S serializer) scope const nothrow @safe {
     import mir.ser : serializeValue;
     serializeValue(serializer, toString);

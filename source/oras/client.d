@@ -1,14 +1,19 @@
 module oras.client;
 
 import oras.protocol;
+import oras.http.base : TransportError, Header;
+import oras.http.requests;
+import oras.data;
 import mir.algebraic;
 import mir.ion.value;
 import mir.ion.exception;
-import oras.http.base : TransportError, Header;
 
 public import oras.protocol;
 
 enum manifestContentType = "application/vnd.oci.image.manifest.v1+json";
+
+alias Client = BaseClient!(oras.http.requests.Transport);
+alias Config = oras.http.requests.Transport.Config;
 
 struct BaseClient(T) {
   alias Transport = T;
@@ -117,15 +122,6 @@ struct BaseClient(T) {
   }
 }
 
-auto baseClient(Transport)(Transport t) {
-  return BaseClient!Transport(t);
-}
-
-import oras.http.requests;
-
-alias Client = BaseClient!(oras.http.requests.Transport);
-alias Config = oras.http.requests.Transport.Config;
-
 struct UploadSession(Transport) {
   private {
     Transport transport;
@@ -190,35 +186,6 @@ struct ChunkedUploadSession(Transport) {
   }
 }
 
-struct Blob(T) {
-  T content;
-}
-
-import std.range : isInputRange, ElementType;
-enum isChunked(T) = isInputRange!T && isInputRange!(ElementType!T);
-
-auto blob(T)(T t) {
-  static if (is(T == string)) {
-    import std.string : representation;
-    return Blob!(immutable(ubyte)[])(t.representation);
-  } else {
-    return Blob!T(t);
-  }
-}
-
-struct Chunk(T) {
-  T content;
-}
-
-auto chunk(T)(T t) {
-  static if (is(T == string)) {
-    import std.string : representation;
-    return Chunk!(immutable(ubyte)[])(t.representation);
-  } else {
-    return Chunk!T(t);
-  }
-}
-
 struct BlobResponse(ByteStream) {
   string[Header] headers;
   ByteStream body;
@@ -246,40 +213,6 @@ struct ChunkResult {
   string location;
 }
 
-struct Routes {
-  import mir.format : text;
-  static string manifest(Name name, Reference reference) @trusted pure nothrow {
-    return text("/v2/", name.value, "/manifests/", reference.match!(r => r.toString));
-  }
-  static string blob(Name name, Digest digest) @trusted pure nothrow {
-    return text("/v2/", name.value, "/blobs/", digest);
-  }
-  static string upload(Name name) @trusted pure nothrow {
-    return text("/v2/", name.value, "/blobs/uploads/");
-  }
-  static string upload(string location, Digest digest) @trusted pure nothrow {
-    import std.algorithm : canFind, find;
-    import std.string;
-    if (location.representation.find('?').length == 0)
-      return text(location, "?digest=", digest);
-    return text(location, "&digest=", digest);
-  }
-  static string upload(Name name, Digest digest) @trusted pure nothrow {
-    auto location = Routes.upload(name);
-    return Routes.upload(location, digest);
-  }
-}
-
-Variant!(Exception, ubyte[]) toJsonBytes(T)(T t) nothrow @trusted {
-  alias R = Variant!(Exception, ubyte[]);
-  import mir.ser.json : serializeJson;
-  try {
-    return R(cast(ubyte[])(t.serializeJson));
-  } catch (Exception e) {
-    return R(e);
-  }
-}
-
 @reflectErr
 struct HttpError {
   size_t code;
@@ -292,13 +225,33 @@ struct DecodingError {
   Exception exception;
 }
 
+struct Hasher(string algorithm) {
+  import std.digest.sha : SHA256, toHexString, LetterCase;
+  static if (algorithm == "sha256")
+    private SHA256 hasher;
+  else static assert("Algorithm \""~algorithm~"\" not supported");
+  void put(T)(T bytes) {
+    hasher.put(bytes);
+  }
+  Digest toDigest() {
+    import mir.format : text;
+    auto hash = hasher.finish[].toHexString!(LetterCase.lower).text();
+    return Digest(algorithm, hash);
+  }
+  static Digest toDigest(T)(T input) {
+    typeof(this) hasher;
+    hasher.put(input);
+    return hasher.toDigest();
+  }
+}
+
 import std.meta : AliasSeq;
-alias ErrorTypes = AliasSeq!(TransportError, HttpError, DecodingError);
-alias Result(T) = Variant!(T, ErrorTypes);
+private alias ErrorTypes = AliasSeq!(TransportError, HttpError, DecodingError);
+private alias Result(T) = Variant!(T, ErrorTypes);
 
-alias then(alias fun) = match!(some!(fun), none!"a");
+private alias then(alias fun) = match!(some!(fun), none!"a");
 
-template decode(T) {
+private template decode(T) {
   alias R = Variant!(T, HttpError, DecodingError);
   R decode(P)(ref P p) nothrow @trusted {
     import std.traits : getSymbolsByUDA, getUDAs;
@@ -328,7 +281,7 @@ template decode(T) {
   }
 }
 
-Variant!(HttpError, DecodingError) decodeError(P)(ref P p) nothrow @trusted {
+private Variant!(HttpError, DecodingError) decodeError(P)(ref P p) nothrow @trusted {
   alias R = Variant!(HttpError, DecodingError);
   try {
     HttpError err;
@@ -348,65 +301,34 @@ Variant!(HttpError, DecodingError) decodeError(P)(ref P p) nothrow @trusted {
   }
 }
 
-template deserializeJson(T) {
-  T deserializeJson(P)(ref P p) {
-    import mir.deser.json;
-    import std.string : join;
-    import std.algorithm : map;
-
-    auto content = p.byteStream.map!(bs => cast(char[])bs).join;
-    return mir.deser.json.deserializeJson!(T)(content);
-  }
-}
-
-auto byChunks(T)(Blob!T blob) nothrow @trusted pure if (isChunked!T) {
-  import std.algorithm : map;
-  static if (is(ElementType!T == Chunk!P, P))
-    return blob.content;
-  else
-    return blob.content.map!(e => chunk(e));
-}
-
-auto bytes(T)(Blob!T blob) nothrow @trusted pure if (!isChunked!T) {
-  return blob.content.toBytes;
-}
-
-auto bytes(T)(Chunk!T chunk) nothrow @trusted pure {
-  return chunk.content.toBytes;
-}
-
-auto toBytes(T)(T content) nothrow @trusted pure {
-  import std.range;
-  static if (is(immutable ElementType!T == immutable ubyte))
-    return content;
-  else
-    return cast(ubyte[])content;
-}
-
-Digest digest(T)(Blob!T blob) nothrow @safe pure if (!isChunked!T) {
+private Digest digest(T)(Blob!T blob) nothrow @safe pure if (!isChunked!T) {
   return Hasher!"sha256".toDigest(blob.bytes);
 }
 
-Digest digest(T)(Chunk!T chunk) nothrow @safe pure {
+private Digest digest(T)(Chunk!T chunk) nothrow @safe pure {
   return Hasher!"sha256".toDigest(chunk.bytes);
 }
 
-struct Hasher(string algorithm) {
-  import std.digest.sha : SHA256, toHexString, LetterCase;
-  static if (algorithm == "sha256")
-    private SHA256 hasher;
-  else static assert("Algorithm \""~algorithm~"\" not supported");
-  void put(T)(T bytes) {
-    hasher.put(bytes);
+private struct Routes {
+  import mir.format : text;
+  static string manifest(Name name, Reference reference) @trusted pure nothrow {
+    return text("/v2/", name.value, "/manifests/", reference.match!(r => r.toString));
   }
-  Digest toDigest() {
-    import mir.format : text;
-    auto hash = hasher.finish[].toHexString!(LetterCase.lower).text();
-    return Digest(algorithm, hash);
+  static string blob(Name name, Digest digest) @trusted pure nothrow {
+    return text("/v2/", name.value, "/blobs/", digest);
   }
-  static Digest toDigest(T)(T input) {
-    typeof(this) hasher;
-    hasher.put(input);
-    return hasher.toDigest();
+  static string upload(Name name) @trusted pure nothrow {
+    return text("/v2/", name.value, "/blobs/uploads/");
+  }
+  static string upload(string location, Digest digest) @trusted pure nothrow {
+    import std.algorithm : canFind, find;
+    import std.string;
+    if (location.representation.find('?').length == 0)
+      return text(location, "?digest=", digest);
+    return text(location, "&digest=", digest);
+  }
+  static string upload(Name name, Digest digest) @trusted pure nothrow {
+    auto location = Routes.upload(name);
+    return Routes.upload(location, digest);
   }
 }
