@@ -1,0 +1,15 @@
+name "it"
+description "integration tests"
+authors "skoppe"
+copyright "Copyright © 2022, skoppe"
+license "MIT"
+dependency "orasclient" path="../.."
+
+configuration "unittest" {
+    targetPath "bin"
+    targetName "it"
+    dependency "unit-threaded" version="*"
+    dependency "unit-threaded:autorunner" version="*"
+    sourcePaths "source"
+    importPaths "source"
+}

@@ -1,0 +1,21 @@
+name "oras"
+description "OCI Registry As Storage"
+authors "skoppe"
+copyright "Copyright © 2022, skoppe"
+license "MIT"
+dependency "mir-core" version="*"
+dependency "mir-ion" version="*"
+dependency "mir-algorithm" version="*"
+dependency "requests" version="*"
+
+configuration "default" {
+}
+
+configuration "unittest" {
+    targetPath "bin"
+    targetName "ut"
+    dependency "unit-threaded" version="*"
+    dependency "unit-threaded:autorunner" version="*"
+    sourcePaths "source" "test/ut"
+    importPaths "source" "test"
+}

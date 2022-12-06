@@ -1,0 +1,7 @@
+services:
+  registry:
+    image: registry:latest
+    environment:
+      - POSTGRES_PASSWORD=password
+    ports:
+      - 5000:5000
