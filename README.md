@@ -1,6 +1,6 @@
 # ORAS Client
 
-<img src="https://github.com/skoppe/oras/workflows/build/badge.svg"/>
+<img src="https://github.com/skoppe/oras/workflows/test/badge.svg"/>
 
 Client for OCI-registry-as-storage
 
