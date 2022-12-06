@@ -3,7 +3,7 @@ description "integration tests"
 authors "skoppe"
 copyright "Copyright © 2022, skoppe"
 license "MIT"
-dependency "orasclient" path="../.."
+dependency "oras" path="../.."
 
 configuration "unittest" {
     targetPath "bin"
