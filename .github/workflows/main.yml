@@ -60,11 +60,6 @@ jobs:
           cd test/it
           docker-compose -f "docker-compose.yml" up -d --build
 
-      - name: Install node
-        uses: actions/setup-node@v1
-        with:
-          node-version: 14.x
-
       - name: Integration Test
         run: |
           cd test/it
