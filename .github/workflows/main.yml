@@ -56,7 +56,9 @@ jobs:
             ${{ runner.os }}-dub-
 
       - name: Start containers
-        run: docker-compose -f "docker-compose.yml" up -d --build
+        run: |
+          cd test/it
+          docker-compose -f "docker-compose.yml" up -d --build
 
       - name: Install node
         uses: actions/setup-node@v1
@@ -70,4 +72,6 @@ jobs:
 
       - name: Stop containers
         if: always()
-        run: docker-compose -f "docker-compose.yml" down
+        run: |
+          cd test/it
+          docker-compose -f "docker-compose.yml" down
