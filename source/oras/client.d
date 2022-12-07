@@ -88,7 +88,7 @@ struct BaseClient(T) {
             return R(r.decodeError());
           }
           if (auto location = Header("location") in r.headers) {
-            return R(ChunkedUploadSession!Transport(transport, *location));
+            return R(new ChunkedUploadSession!Transport(transport, *location));
           }
           return R(DecodingError(new Exception("Missing location header")));
         });
@@ -135,17 +135,25 @@ struct UploadSession(Transport) {
           if (r.code != 201)
             return R(r.decode!HttpError);
 
-          return R(r.decode!UploadResult);
+          auto result = r.decode!UploadResult.then!((UploadResult r){
+              r.size = blob.bytes.length;
+              return r;
+            });
+          return R(result);
         });
   }
 }
 
-struct ChunkedUploadSession(Transport) {
+class ChunkedUploadSession(Transport) {
   private {
     Transport transport;
     string location;
     size_t offset;
     Hasher!"sha256" hasher;
+  }
+  this(Transport transport, string location) nothrow @safe {
+    this.transport = transport;
+    this.location = location;
   }
   Result!(ChunkResult) upload(T)(Chunk!T chunk) nothrow @safe {
     import mir.format : text;
@@ -181,7 +189,11 @@ struct ChunkedUploadSession(Transport) {
           if (r.code != 201)
             return R(r.decode!HttpError);
 
-          return R(r.decode!UploadResult);
+          auto result = r.decode!UploadResult.then!((UploadResult r){
+              r.size = offset;
+              return r;
+            });
+          return R(result);
         });
   }
 }
@@ -205,6 +217,7 @@ struct UploadResult {
   string location;
   @Header("docker-content-digest")
   string digest;
+  size_t size;
 }
 
 struct ChunkResult {

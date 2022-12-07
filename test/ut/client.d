@@ -150,6 +150,7 @@ alias Client = BaseClient!(Transport);
   ubyte[] bytes = [1,2,3,4];
   auto result = upload(start(), blob(bytes));
   result.location.should == "https://example.com/upload/blob";
+  result.size.should == 4;
 }
 
 @("chunkedUpload")
@@ -176,6 +177,7 @@ alias Client = BaseClient!(Transport);
   upload(session, chunk(bytes));
   auto result = finish(session);
   result.location.should == "https://example.com/upload/blob";
+  result.size.should == 4;
 }
 
 
