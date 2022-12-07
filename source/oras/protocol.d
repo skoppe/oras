@@ -107,6 +107,8 @@ struct ApiError {
   Code code;
   string message;
   @serdeOptional
+  string description;
+  @serdeOptional
   JsonAlgebraic detail;
 }
 
