@@ -23,7 +23,7 @@ struct BaseClient(T) {
   }
   Result!(ManifestResponse) getManifest(Name name, Reference reference) const nothrow @safe {
     return transport
-      .get(Routes.manifest(name, reference))
+      .get(Routes.manifest(name, reference), [Header("accept"): manifestContentType])
       .then!((r) @trusted => r.decode!(ManifestResponse));
   }
   Variant!(bool, TransportError) hasManifest(Name name, Reference reference) const nothrow @safe {

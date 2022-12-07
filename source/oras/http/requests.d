@@ -12,11 +12,12 @@ struct Transport {
     string host;
   }
   private Config config;
-  Response get(string path) const @trusted nothrow {
+  Response get(string path, string[Header] headers = null) const @trusted nothrow {
     try {
       auto req = Request();
       // req.verbosity = 3;
       req.useStreaming = true;
+      req.addHeaders(headers.toHeaders);
       auto res = req.get(getUrl(path));
       return Response(HttpResponse(res.code, res.toHeaders, ByteStream(res.receiveAsRange), res.contentLength));
     } catch (Exception e) {
