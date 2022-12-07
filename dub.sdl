@@ -14,8 +14,8 @@ configuration "default" {
 configuration "unittest" {
     targetPath "bin"
     targetName "ut"
-    dependency "unit-threaded" version="*"
-    dependency "unit-threaded:autorunner" version="*"
+    dependency "unit-threaded" version=">=2.1.2"
+    dependency "unit-threaded:autorunner" version=">=2.1.2"
     sourcePaths "source" "test/ut"
     importPaths "source" "test"
 }
