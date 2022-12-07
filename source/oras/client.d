@@ -157,8 +157,8 @@ class ChunkedUploadSession(Transport) {
   }
   Result!(ChunkResult) upload(T)(Chunk!T chunk) nothrow @safe {
     import mir.format : text;
-    auto range = text("bytes ", offset, "-", offset + chunk.bytes.length, "/*");
-    auto headers = [Header("content-type"): "application/octet-stream", Header("content-range"): range, Header("content-length"): text(chunk.bytes.length)];
+    auto range = text("bytes=", offset, "-", offset + chunk.bytes.length);
+    auto headers = [Header("content-type"): "application/octet-stream", Header("range"): range, Header("content-length"): text(chunk.bytes.length)];
     alias R = Result!(ChunkResult);
     hasher.put(chunk.bytes);
     return transport
