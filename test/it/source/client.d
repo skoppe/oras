@@ -42,9 +42,9 @@ import mir.algebraic;
     .upload(oras.client.Name("stuff/foo"), toBlob("{}"))
     .get!(UploadResult);
 
-  result.digest.should == "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a";
+  result.digest.toString().should == "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a";
 
-  auto manifest = Manifest(2, manifestContentType, null, null, Manifest.Config("application/vnd.oci.image.config.v1+json", Digest.from(result.digest).assumeOk, 2));
+  auto manifest = Manifest(2, manifestContentType, null, null, Manifest.Config("application/vnd.oci.image.config.v1+json", result.digest, 2));
   auto stored = client
     .storeManifest(oras.client.Name("stuff/foo"), Reference(Tag("v1.2.4")), manifest).get!(ManifestResult);
 

@@ -111,9 +111,8 @@ struct BaseClient(T) {
             return R(r.decodeError());
           }
           return r.decode!(ManifestResult).then!((ManifestResult m) {
-              auto resDigest = Digest.from(m.digest);
               auto reqDigest = Hasher!"sha256".toDigest(bytes);
-              if (resDigest != reqDigest) {
+              if (m.digest != reqDigest) {
                 return R(DecodingError(new Exception("Digest invalid")));
               }
               return R(m);
@@ -208,7 +207,7 @@ struct ManifestResult {
   @Header("location")
   string location;
   @Header("docker-content-digest")
-  string digest;
+  Digest digest;
 }
 
 struct UploadResult {
@@ -216,7 +215,7 @@ struct UploadResult {
   @Header("location")
   string location;
   @Header("docker-content-digest")
-  string digest;
+  Digest digest;
   size_t size;
 }
 
@@ -281,7 +280,21 @@ private template decode(T) {
         static foreach(symbol; getSymbolsByUDA!(T, Header)) {{
             enum udas = getUDAs!(symbol, Header);
             static assert(udas.length == 1);
-            __traits(getMember, t, __traits(identifier, symbol)) = p.headers[udas[0]];
+            alias TargetType = typeof(symbol);
+            static if (is(TargetType == Digest)) {
+              auto result = Digest.from(p.headers[udas[0]]);
+              auto err = result.match!((Digest digest) {
+                  __traits(getMember, t, __traits(identifier, symbol)) = digest;
+                  return null;
+                }, (StringError e) {
+                  return DecodingError(new Exception(e.message));
+                });
+              if (!err.isNull) {
+                return R(err.get());
+              }
+            } else {
+              __traits(getMember, t, __traits(identifier, symbol)) = p.headers[udas[0]];
+            }
           }}
         static if (__traits(hasMember, T, "headers"))
           t.headers = p.headers;
