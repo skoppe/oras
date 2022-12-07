@@ -148,7 +148,7 @@ alias Client = BaseClient!(Transport);
       .trustedGet!(UploadResult);
   }
   ubyte[] bytes = [1,2,3,4];
-  auto result = upload(start(), blob(bytes));
+  auto result = upload(start(), toBlob(bytes));
   result.location.should == "https://example.com/upload/blob";
   result.size.should == 4;
 }
@@ -174,7 +174,7 @@ alias Client = BaseClient!(Transport);
   }
   auto session = start();
   ubyte[] bytes = [1,2,3,4];
-  upload(session, chunk(bytes));
+  upload(session, toChunk(bytes));
   auto result = finish(session);
   result.location.should == "https://example.com/upload/blob";
   result.size.should == 4;

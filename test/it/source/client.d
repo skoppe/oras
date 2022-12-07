@@ -29,7 +29,7 @@ import mir.algebraic;
   auto client = Client(Config("http://localhost:5000"));
   auto session = client.startUpload(oras.client.Name("stuff/faz"))
     .get!(UploadSession!(Client.Transport));
-  auto result = session.upload(blob([1,2,3,4]))
+  auto result = session.upload(toBlob([1,2,3,4]))
     .get!(UploadResult);
 
   result.location.should == "http://localhost:5000/v2/stuff/faz/blobs/sha256:cf97adeedb59e05bfd73a2b4c2a8885708c4f4f70c84c64b27120e72ab733b72";
@@ -39,7 +39,7 @@ import mir.algebraic;
 @safe unittest {
   auto client = Client(Config("http://localhost:5000"));
   auto result = client
-    .upload(oras.client.Name("stuff/foo"), blob("{}"))
+    .upload(oras.client.Name("stuff/foo"), toBlob("{}"))
     .get!(UploadResult);
 
   result.digest.should == "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a";
@@ -66,7 +66,7 @@ import mir.algebraic;
 @safe unittest {
   auto client = Client(Config("http://localhost:5000"));
   auto result = client
-    .upload(oras.client.Name("stuff/hap"), blob("{}"))
+    .upload(oras.client.Name("stuff/hap"), toBlob("{}"))
     .get!(UploadResult);
 
   auto query = client
@@ -81,7 +81,7 @@ import mir.algebraic;
   auto client = Client(Config("http://localhost:5000"));
   ubyte[] bytes = [1,2,3,4];
   auto result = client
-    .upload(oras.client.Name("stuff/bla"), blob(bytes))
+    .upload(oras.client.Name("stuff/bla"), toBlob(bytes))
     .get!(UploadResult);
 
   result.location.should == "http://localhost:5000/v2/stuff/bla/blobs/sha256:9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a";
@@ -95,7 +95,7 @@ import mir.algebraic;
   ubyte[] bytes = [1,2,3,4,5,6,7,8];
   auto cs = bytes.chunks(4);
   auto result = client
-    .upload(oras.client.Name("stuff/foz"), blob(cs))
+    .upload(oras.client.Name("stuff/foz"), toBlob(cs))
     .get!(UploadResult);
 
   result.location.should == "http://localhost:5000/v2/stuff/foz/blobs/sha256:66840dda154e8a113c31dd0ad32f7f3a366a80e8136979d8f5a101d3d29d6f72";
@@ -110,10 +110,10 @@ import mir.algebraic;
 
   ubyte[] bytes1 = [1,2,3,4];
   ubyte[] bytes2 = [5,6,7,8];
-  auto chunk1 = session.upload(chunk(bytes1))
+  auto chunk1 = session.upload(toChunk(bytes1))
     .get!(ChunkResult);
 
-  auto chunk2 = session.upload(chunk(bytes2))
+  auto chunk2 = session.upload(toChunk(bytes2))
     .get!(ChunkResult);
 
   auto result = session.finish()

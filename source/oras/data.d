@@ -8,7 +8,7 @@ struct Blob(T) {
   private T content;
 }
 
-auto blob(T)(T t) {
+auto toBlob(T)(T t) {
   static if (is(T == string)) {
     import std.string : representation;
     return Blob!(immutable(ubyte)[])(t.representation);
@@ -21,7 +21,7 @@ struct Chunk(T) {
   private T content;
 }
 
-auto chunk(T)(T t) {
+auto toChunk(T)(T t) {
   static if (is(T == string)) {
     import std.string : representation;
     return Chunk!(immutable(ubyte)[])(t.representation);
@@ -45,7 +45,7 @@ package auto byChunks(T)(Blob!T blob) nothrow @trusted pure if (isChunked!T) {
   static if (is(ElementType!T == Chunk!P, P))
     return blob.content;
   else
-    return blob.content.map!(e => chunk(e));
+    return blob.content.map!(e => toChunk(e));
  }
 
 package auto bytes(T)(Blob!T blob) nothrow @trusted pure if (!isChunked!T) {
