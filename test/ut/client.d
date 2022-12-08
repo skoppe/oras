@@ -30,7 +30,7 @@ struct Transport {
   static struct Config {}
   Config config;
   import std.algorithm : canFind;
-  Response get(string url) const @trusted nothrow {
+  Response get(string url, string[Header] requestHeaders = null) const @trusted nothrow {
     if (url.canFind("/manifests/")) {
       auto headers = [Header("docker-content-digest"): "sha256:f4af205e0a1cfca1a1fab67353d02f3ff6080bb99fed2ab791fa22b429e34060",
                       Header("docker-distribution-api-version"): "registry/2.0"];
