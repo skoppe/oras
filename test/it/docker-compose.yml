@@ -1,6 +1,14 @@
 services:
   registry:
+    profiles: ["registry"]
     image: registry:latest
+    environment:
+      - POSTGRES_PASSWORD=password
+    ports:
+      - 5000:5000
+  zot:
+    profiles: ["zot"]
+    image: ghcr.io/project-zot/zot-linux-amd64:latest
     environment:
       - POSTGRES_PASSWORD=password
     ports:
