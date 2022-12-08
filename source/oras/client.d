@@ -48,7 +48,7 @@ struct BaseClient(T) {
   Result!(UploadResult) upload(T)(Name name, Blob!T blob) const nothrow @safe {
     alias R = Result!(UploadResult);
     static if (isChunked!T) {
-      return startChunkedUpload(name).then!((ChunkedUploadSession!Transport s) {
+      return chunkedUpload(name, (ref ChunkedUploadSession!Transport s) {
           foreach(chunk; blob.byChunks) {
             auto result = s.upload(chunk);
             if (!result._is!ChunkResult) {
@@ -60,27 +60,28 @@ struct BaseClient(T) {
         });
     } else {
 
-      return startUpload(name).then!((UploadSession!Transport s) {
+      return upload(name, (ref UploadSession!Transport s) {
           return s.upload(blob);
         });
     }
   }
-  Result!(UploadSession!Transport) startUpload(Name name) const nothrow @safe {
-    alias R = Result!(UploadSession!Transport);
+  Result!(UploadResult) upload(Name name, Result!UploadResult delegate(ref UploadSession!Transport) scope nothrow @safe work) const nothrow @safe {
+    alias R = Result!(UploadResult);
     return transport
       .post(Routes.upload(name), null)
-      .then!((r) {
+      .then!((r) @safe {
           if (r.code != 202) {
             return R(r.decodeError());
           }
           if (auto location = Header("location") in r.headers) {
-            return R(UploadSession!Transport(transport, *location));
+            auto session = UploadSession!Transport(transport, *location);
+            return work(session);
           }
           return R(DecodingError(new Exception("Missing location header")));
         });
   }
-  Result!(ChunkedUploadSession!Transport) startChunkedUpload(Name name) const nothrow @safe {
-    alias R = Result!(ChunkedUploadSession!Transport);
+  Result!(UploadResult) chunkedUpload(Name name, Result!UploadResult delegate(ref ChunkedUploadSession!Transport) scope nothrow @safe work) const nothrow @safe {
+    alias R = Result!(UploadResult);
     return transport
       .post(Routes.upload(name), [Header("content-length"): "0"])
       .then!((r) {
@@ -88,7 +89,8 @@ struct BaseClient(T) {
             return R(r.decodeError());
           }
           if (auto location = Header("location") in r.headers) {
-            return R(new ChunkedUploadSession!Transport(transport, *location));
+            auto session = ChunkedUploadSession!Transport(transport, *location);
+            return work(session);
           }
           return R(DecodingError(new Exception("Missing location header")));
         });
@@ -143,16 +145,12 @@ struct UploadSession(Transport) {
   }
 }
 
-class ChunkedUploadSession(Transport) {
+struct ChunkedUploadSession(Transport) {
   private {
     Transport transport;
     string location;
     size_t offset;
     Hasher!"sha256" hasher;
-  }
-  this(Transport transport, string location) nothrow @safe {
-    this.transport = transport;
-    this.location = location;
   }
   Result!(ChunkResult) upload(T)(Chunk!T chunk) nothrow @safe {
     import mir.format : text;
@@ -258,8 +256,8 @@ struct Hasher(string algorithm) {
 }
 
 import std.meta : AliasSeq;
-private alias ErrorTypes = AliasSeq!(TransportError, HttpError, DecodingError);
-private alias Result(T) = Variant!(T, ErrorTypes);
+alias ErrorTypes = AliasSeq!(TransportError, HttpError, DecodingError);
+alias Result(T) = Variant!(T, ErrorTypes);
 
 private alias then(alias fun) = match!(some!(fun), none!"a");
 

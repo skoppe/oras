@@ -40,7 +40,7 @@ package Variant!(Exception, ubyte[]) toJsonBytes(T)(T t) nothrow @trusted {
   }
 }
 
-package auto byChunks(T)(Blob!T blob) nothrow @trusted pure if (isChunked!T) {
+auto byChunks(T)(Blob!T blob) nothrow @trusted pure if (isChunked!T) {
   import std.algorithm : map;
   static if (is(ElementType!T == Chunk!P, P))
     return blob.content;

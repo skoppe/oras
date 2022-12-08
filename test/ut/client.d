@@ -137,18 +137,15 @@ alias Client = BaseClient!(Transport);
   import mir.deser.json;
   import mir.algebraic;
 
-  auto start() @safe nothrow {
+  auto upload(T)(Blob!T blob) @safe nothrow {
     return Client(Transport.Config())
-      .startUpload(oras.protocol.Name("foo/bar"))
-      .trustedGet!(UploadSession!Transport);
-  }
-
-  auto upload(T)(UploadSession!Transport session, Blob!T blob) @safe nothrow {
-    return session.upload(blob)
+      .upload(oras.protocol.Name("foo/bar"), (ref UploadSession!Transport session) @safe nothrow {
+          return session.upload(blob);
+        })
       .trustedGet!(UploadResult);
   }
   ubyte[] bytes = [1,2,3,4];
-  auto result = upload(start(), toBlob(bytes));
+  auto result = upload(toBlob(bytes));
   result.location.should == "https://example.com/upload/blob";
   result.size.should == 4;
 }
@@ -157,27 +154,27 @@ alias Client = BaseClient!(Transport);
 @safe unittest {
   import mir.deser.json;
   import mir.algebraic;
+  import std.range : chunks;
+  import oras.data : byChunks;
 
-  auto start() @safe nothrow {
+  auto chunkedUpload(T)(Blob!T blob) @safe nothrow {
     return Client(Transport.Config())
-      .startChunkedUpload(oras.protocol.Name("foo/bar"))
-      .trustedGet!(ChunkedUploadSession!Transport);
-  }
-
-  auto upload(T)(ChunkedUploadSession!Transport session, Chunk!T chunk) @safe nothrow {
-    return session.upload(chunk)
-      .trustedGet!(ChunkResult);
-  }
-  auto finish(ChunkedUploadSession!Transport session) @safe nothrow {
-    return session.finish()
+      .chunkedUpload(oras.protocol.Name("foo/bat"), (ref ChunkedUploadSession!Transport session) @safe nothrow {
+          foreach(chunk; blob.byChunks) {
+            auto result = session.upload(chunk);
+            if (!result._is!ChunkResult) {
+              session.cancel();
+              return Result!(UploadResult)(result.trustedGet!(ErrorTypes));
+            }
+          }
+          return session.finish();
+        })
       .trustedGet!(UploadResult);
   }
-  auto session = start();
-  ubyte[] bytes = [1,2,3,4];
-  upload(session, toChunk(bytes));
-  auto result = finish(session);
+  ubyte[] bytes = [1,2,3,4,5,6,7,8];
+  auto result = chunkedUpload(toBlob(bytes.chunks(4)));
   result.location.should == "https://example.com/upload/blob";
-  result.size.should == 4;
+  result.size.should == 8;
 }
 
 

@@ -27,9 +27,9 @@ import mir.algebraic;
 @("startUpload.blob")
 @safe unittest {
   auto client = Client(Config("http://localhost:5000"));
-  auto session = client.startUpload(oras.client.Name("stuff/faz"))
-    .get!(UploadSession!(Client.Transport));
-  auto result = session.upload(toBlob([1,2,3,4]))
+  auto result = client.upload(oras.client.Name("stuff/faz"), (ref session) {
+      return session.upload(toBlob([1,2,3,4]));
+    })
     .get!(UploadResult);
 
   result.location.shouldEndWith("/v2/stuff/faz/blobs/sha256:cf97adeedb59e05bfd73a2b4c2a8885708c4f4f70c84c64b27120e72ab733b72");
@@ -106,18 +106,18 @@ import mir.algebraic;
 @("startChunkedUpload.blob")
 @safe unittest {
   auto client = Client(Config("http://localhost:5000"));
-  auto session = client.startChunkedUpload(oras.client.Name("stuff/faz"))
-    .get!(ChunkedUploadSession!(Client.Transport));
-
   ubyte[] bytes1 = [1,2,3,4];
   ubyte[] bytes2 = [5,6,7,8];
-  auto chunk1 = session.upload(toChunk(bytes1))
-    .get!(ChunkResult);
 
-  auto chunk2 = session.upload(toChunk(bytes2))
-    .get!(ChunkResult);
+  auto result = client.chunkedUpload(oras.client.Name("stuff/faz"), (ref ChunkedUploadSession!(Client.Transport) session) nothrow {
+      auto chunk1 = session.upload(toChunk(bytes1))
+        .trustedGet!(ChunkResult);
 
-  auto result = session.finish()
+      auto chunk2 = session.upload(toChunk(bytes2))
+        .trustedGet!(ChunkResult);
+
+      return session.finish();
+    })
     .get!(UploadResult);
 
   result.location.shouldEndWith("/v2/stuff/faz/blobs/sha256:66840dda154e8a113c31dd0ad32f7f3a366a80e8136979d8f5a101d3d29d6f72");
