@@ -78,6 +78,8 @@ struct Manifest {
     string mediaType;
     Digest digest;
     size_t size;
+    @serdeOptional
+    string[string] annotations;
   }
   int schemaVersion;
   string mediaType;
