@@ -74,7 +74,6 @@ struct BaseClient(T) {
           return s.finish();
         });
     } else {
-
       return upload(name, (ref UploadSession!Transport s) {
           return s.upload(blob);
         });
@@ -235,7 +234,7 @@ struct PushSession(Client) {
     import std.datetime.timezone : UTC;
     import std.exception : assumeWontThrow;
 
-    annotations.require("org.opencontainers.image.created", Clock.currTime(UTC()).toISOExtString).assumeWontThrow;
+    annotations.require(Annotations.imageCreated, Clock.currTime(UTC()).toISOExtString).assumeWontThrow;
 
     auto manifest = Manifest(2, manifestContentType, layers, annotations, config);
 
