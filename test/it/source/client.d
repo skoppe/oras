@@ -143,6 +143,26 @@ import mir.algebraic;
   blob.body.front.should == [1,2,3,4,5,6,7,8];
 }
 
+@("pull")
+@safe unittest {
+  auto client = Client(Config("http://localhost:5000"));
+
+  ubyte[] bytes = [8,7,6,5,4,3,2,1];
+  auto name = oras.client.Name("pull/blob");
+  auto result = client.push(name, Tag("v1.2.3"), (ref session) {
+      session.pushLayer(bytes.toBlob.toAnnotatedLayer("application/octet-stream").withFilename("hex.bin"));
+      return session.finish();
+    })
+    .get!(PushResult);
+
+  auto blob = client.pull(name, Reference(result.digest), (ref session) {
+      return session.pullLayer(session.layers[0]);
+    })
+    .get!(BlobResponse!(Client.Transport.ByteStream));
+
+  blob.body.front.should == [8,7,6,5,4,3,2,1];
+}
+
 void shouldEndWith(V, E)(auto ref V value, auto ref E expected, string file = __FILE__, size_t line = __LINE__)
 {
   import mir.format : text;

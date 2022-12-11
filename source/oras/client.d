@@ -53,6 +53,13 @@ struct BaseClient(T) {
           return work(session);
         });
   }
+  T pull(T)(Name name, Reference reference, T delegate(ref PullSession!BaseClient) scope nothrow @safe work) nothrow @safe {
+    return getManifest(name, reference)
+      .then!((ManifestResponse response) {
+          auto session = PullSession!BaseClient(this, name, reference, response.body);
+          return work(session);
+        });
+  }
   Result!(UploadResult) upload(T)(Name name, Blob!T blob) const nothrow @safe {
     alias R = Result!(UploadResult);
     static if (isChunked!T) {
@@ -236,6 +243,21 @@ struct PushSession(Client) {
       .then!((ManifestResult r){
           return PushResult(name, tag, r.location, r.digest, manifest);
         });
+  }
+}
+
+struct PullSession(Client) {
+  private {
+    Client client;
+    Name name;
+    Reference reference;
+    Manifest manifest;
+  }
+  Result!(BlobResponse!(Client.Transport.ByteStream)) pullLayer(const Manifest.Layer layer) const @safe nothrow {
+    return client.getBlob(name, layer.digest);
+  }
+  const(Manifest.Layer)[] layers() const @safe nothrow {
+    return manifest.layers;
   }
 }
 

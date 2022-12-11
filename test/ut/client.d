@@ -198,6 +198,15 @@ alias Client = BaseClient!(Transport);
   result.manifest.annotations["org.opencontainers.image.created"].shouldNotThrow;
 }
 
-// TODO
-// - test 404 on getManifest
-// - check routes
+@("pull")
+@safe unittest {
+  auto pull(oras.protocol.Name name, Reference reference) @safe nothrow {
+    return Client(Transport.Config())
+      .pull(name, reference, delegate (ref PullSession!Client session) @safe nothrow {
+          return session.pullLayer(session.layers[0]);
+        })
+      .trustedGet!(BlobResponse!(ByteStream));
+  }
+  auto response = pull(oras.protocol.Name("pull/name"), Reference(Tag("v1.0")));
+  response.body.front.should == [1,2,3,4];
+}
