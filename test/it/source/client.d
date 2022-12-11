@@ -124,6 +124,25 @@ import mir.algebraic;
   result.digest.toString.should == "sha256:66840dda154e8a113c31dd0ad32f7f3a366a80e8136979d8f5a101d3d29d6f72";
 }
 
+@("push")
+@safe unittest {
+  auto client = Client(Config("http://localhost:5000"));
+
+  ubyte[] bytes = [1,2,3,4,5,6,7,8];
+  auto name = oras.client.Name("push/blob");
+  auto result = client.push(name, Tag("v1.2.3"), (ref session) {
+      session.pushLayer(bytes.toBlob.toAnnotatedLayer("application/octet-stream").withFilename("hex.bin"));
+      return session.finish();
+    })
+    .get!(PushResult);
+
+  auto blob = client
+    .getBlob(name, result.manifest.layers[0].digest)
+    .get!(BlobResponse!(Client.Transport.ByteStream));
+
+  blob.body.front.should == [1,2,3,4,5,6,7,8];
+}
+
 void shouldEndWith(V, E)(auto ref V value, auto ref E expected, string file = __FILE__, size_t line = __LINE__)
 {
   import mir.format : text;

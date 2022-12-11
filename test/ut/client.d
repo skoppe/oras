@@ -45,7 +45,7 @@ struct Transport {
   Response head(string url) const @safe nothrow {
     return Response(HttpResponse(200));
   }
-  Response put(string url, ubyte[] bytes = null, string[Header] requestHeaders = null) const @safe nothrow {
+  Response put(T)(string url, T[] bytes = null, string[Header] requestHeaders = null) const @safe nothrow {
     auto digest = Hasher!"sha256".toDigest(bytes);
     auto responseHeaders = [Header("docker-content-digest"): digest.toString(),
                     Header("docker-distribution-api-version"): "registry/2.0",
@@ -177,6 +177,26 @@ alias Client = BaseClient!(Transport);
   result.size.should == 8;
 }
 
+@("push")
+@safe unittest {
+  auto push(T)(oras.protocol.Name name, Tag tag, AnnotatedLayer!T layer) @safe nothrow {
+    return Client(Transport.Config())
+      .push(name, tag, (ref PushSession!Client session) {
+          auto l = session.pushLayer(layer).trustedGet!(Manifest.Layer);
+          return session.finish();
+        })
+      .trustedGet!(PushResult);
+  }
+  ubyte[] bytes = [1,2,3,4,5,6,7,8];
+  auto layer = bytes.toBlob.toAnnotatedLayer("text/plain").withFilename("bytes.hex");
+  auto result = push(oras.protocol.Name("foo/bat"), Tag("v1.0"), layer);
+  result.name.should == oras.protocol.Name("foo/bat");
+  result.tag.should == Tag("v1.0");
+  result.location.should == "https://example.com/upload/blob";
+  result.manifest.layers.length.should == 1;
+  result.manifest.layers[0].annotations.should == ["org.opencontainers.image.title":"bytes.hex"];
+  result.manifest.annotations["org.opencontainers.image.created"].shouldNotThrow;
+}
 
 // TODO
 // - test 404 on getManifest
