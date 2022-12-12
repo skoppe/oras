@@ -14,7 +14,7 @@ See oras.land for more information.
 import oras;
 
 auto client = Client(Config("http://localhost:5000"));
-auto name = oras.client.Name("org/name");
+auto name = Name("org/name");
 ubyte[] bytes = [8,7,6,5,4,3,2,1];
 
 auto push = client.push(name, Tag("v1.2.3"), (ref session) {
