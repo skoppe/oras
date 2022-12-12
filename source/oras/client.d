@@ -45,6 +45,21 @@ struct BaseClient(T) {
       .then!((r) => r.code == 200);
     // TODO: if not 404 then httperror
   }
+  Result!(PushResult) push(Name name, Tag tag, Result!(PushResult) delegate(ref PushSession!BaseClient) scope nothrow @safe work) nothrow @safe {
+    return upload(name, toBlob("{}"))
+      .then!((UploadResult configResult) {
+          auto config = Manifest.Config("application/vnd.oci.image.config.v1+json", configResult.digest, configResult.size);
+          auto session = PushSession!BaseClient(this, name, tag, config);
+          return work(session);
+        });
+  }
+  T pull(T)(Name name, Reference reference, T delegate(ref PullSession!BaseClient) scope nothrow @safe work) nothrow @safe {
+    return getManifest(name, reference)
+      .then!((ManifestResponse response) {
+          auto session = PullSession!BaseClient(this, name, reference, response.body);
+          return work(session);
+        });
+  }
   Result!(UploadResult) upload(T)(Name name, Blob!T blob) const nothrow @safe {
     alias R = Result!(UploadResult);
     static if (isChunked!T) {
@@ -195,6 +210,57 @@ struct ChunkedUploadSession(Transport) {
   }
 }
 
+struct PushSession(Client) {
+  private {
+    Client client;
+    Name name;
+    Tag tag;
+    Manifest.Config config;
+    Manifest.Layer[] layers;
+  }
+  Result!(Manifest.Layer) pushLayer(T)(AnnotatedLayer!T layer) @safe nothrow {
+    return client.upload(name, layer.blob)
+      .then!((UploadResult blobResult) nothrow {
+          auto layer = Manifest.Layer(layer.mediaType, blobResult.digest, blobResult.size, layer.annotations);
+          layers ~= layer;
+          return layer;
+        });
+  }
+  Nullable!(ErrorTypes) cancel() @safe nothrow {
+    // TODO implement
+    return typeof(return).init;
+  }
+  Result!(PushResult) finish(string[string] annotations = null) @safe nothrow {
+    import std.datetime.systime : Clock;
+    import std.datetime.timezone : UTC;
+    import std.exception : assumeWontThrow;
+
+    annotations.require("org.opencontainers.image.created", Clock.currTime(UTC()).toISOExtString).assumeWontThrow;
+
+    auto manifest = Manifest(2, manifestContentType, layers, annotations, config);
+
+    return client.storeManifest(name, Reference(tag), manifest)
+      .then!((ManifestResult r){
+          return PushResult(name, tag, r.location, r.digest, manifest);
+        });
+  }
+}
+
+struct PullSession(Client) {
+  private {
+    Client client;
+    Name name;
+    Reference reference;
+    Manifest manifest;
+  }
+  Result!(BlobResponse!(Client.Transport.ByteStream)) pullLayer(const Manifest.Layer layer) const @safe nothrow {
+    return client.getBlob(name, layer.digest);
+  }
+  const(Manifest.Layer)[] layers() const @safe nothrow {
+    return manifest.layers;
+  }
+}
+
 struct BlobResponse(ByteStream) {
   string[Header] headers;
   ByteStream body;
@@ -221,6 +287,14 @@ struct ChunkResult {
   string[Header] headers;
   @Header("location")
   string location;
+}
+
+struct PushResult {
+  Name name;
+  Tag tag;
+  string location;
+  Digest digest;
+  Manifest manifest;
 }
 
 @reflectErr
@@ -258,8 +332,7 @@ struct Hasher(string algorithm) {
 import std.meta : AliasSeq;
 alias ErrorTypes = AliasSeq!(TransportError, HttpError, DecodingError);
 alias Result(T) = Variant!(T, ErrorTypes);
-
-private alias then(alias fun) = match!(some!(fun), none!"a");
+alias then(alias fun) = match!(some!(fun), none!"a");
 
 private template decode(T) {
   alias R = Variant!(T, HttpError, DecodingError);

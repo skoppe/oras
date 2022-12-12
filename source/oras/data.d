@@ -4,6 +4,20 @@ import std.range : isInputRange, ElementType;
 enum isChunked(T) = isInputRange!T && isInputRange!(ElementType!T);
 import mir.algebraic : Variant;
 
+struct AnnotatedLayer(T) {
+  Blob!(T) blob;
+  string mediaType;
+  string[string] annotations;
+  typeof(this) withFilename(string filename) {
+    annotations["org.opencontainers.image.title"] = filename;
+    return this;
+  }
+}
+
+AnnotatedLayer!T toAnnotatedLayer(T)(Blob!T blob, string mediaType, string[string] annotations = null) @safe nothrow {
+  return AnnotatedLayer!T(blob, mediaType, annotations);
+}
+
 struct Blob(T) {
   private T content;
 }
