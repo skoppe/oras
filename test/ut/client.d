@@ -194,8 +194,8 @@ alias Client = BaseClient!(Transport);
   result.tag.should == Tag("v1.0");
   result.location.should == "https://example.com/upload/blob";
   result.manifest.layers.length.should == 1;
-  result.manifest.layers[0].annotations.should == ["org.opencontainers.image.title":"bytes.hex"];
-  result.manifest.annotations["org.opencontainers.image.created"].shouldNotThrow;
+  result.manifest.layers[0].annotations.should == [Annotations.imageTitle: "bytes.hex"];
+  result.manifest.annotations[Annotations.imageCreated].shouldNotThrow;
 }
 
 @("pull")

@@ -9,13 +9,80 @@ struct AnnotatedLayer(T) {
   string mediaType;
   string[string] annotations;
   typeof(this) withFilename(string filename) {
-    annotations["org.opencontainers.image.title"] = filename;
+    annotations[Annotations.imageTitle] = filename;
     return this;
   }
 }
 
 AnnotatedLayer!T toAnnotatedLayer(T)(Blob!T blob, string mediaType, string[string] annotations = null) @safe nothrow {
   return AnnotatedLayer!T(blob, mediaType, annotations);
+}
+
+struct Annotations {
+  // date and time on which the artifact was built, conforming to RFC 3339.
+  enum artifactCreated = "org.opencontainers.artifact.created";
+
+  // human readable description for the artifact (string)
+  enum artifactDescription = "org.opencontainers.artifact.description";
+
+  // date and time on which the image was built, conforming to RFC 3339.
+  enum imageCreated = "org.opencontainers.image.created";
+
+  // contact details of the people or organization responsible for the image (freeform string)
+  enum imageAuthors = "org.opencontainers.image.authors";
+
+  // URL to find more information on the image (string)
+  enum imageUrl = "org.opencontainers.image.url";
+
+  // URL to get documentation on the image (string)
+  enum imageDocumentation = "org.opencontainers.image.documentation";
+
+  // URL to get source code for building the image (string)
+  enum imageSource = "org.opencontainers.image.source";
+
+  // version of the packaged software
+  // The version MAY match a label or tag in the source code repository
+  // version MAY be Semantic versioning-compatible
+  enum imageVersion = "org.opencontainers.image.version";
+
+  // Source control revision identifier for the packaged software.
+  enum imageRevision = "org.opencontainers.image.revision";
+
+  // Name of the distributing entity, organization or individual.
+  enum imageVendor = "org.opencontainers.image.vendor";
+
+  // License(s) under which contained software is distributed as an SPDX License Expression.
+  enum imageLicenses = "org.opencontainers.image.licenses";
+
+  // Name of the reference for a target (string).
+  // SHOULD only be considered valid when on descriptors on index.json within image layout.
+  // Character set of the value SHOULD conform to alphanum of A-Za-z0-9 and separator set of -._:@/+
+  // The reference must match the following grammar:
+
+  // ref       ::= component ("/" component)*
+  // component ::= alphanum (separator alphanum)*
+  // alphanum  ::= [A-Za-z0-9]+
+  // separator ::= [-._:@+] | "--"
+  enum imageRefName = "org.opencontainers.image.ref.name";
+
+  // Human-readable title of the image (string)
+  enum imageTitle = "org.opencontainers.image.title";
+
+  // Human-readable description of the software packaged in the image (string)
+  enum imageDescription = "org.opencontainers.image.description";
+
+  // Digest of the image this image is based on (string)
+  // This SHOULD be the immediate image sharing zero-indexed layers with the image, such as from a Dockerfile FROM statement.
+  // This SHOULD NOT reference any other images used to generate the contents of the image (e.g., multi-stage Dockerfile builds).
+  enum imageBaseDigest = "org.opencontainers.image.base.digest";
+
+  // Image reference of the image this image is based on (string)
+  // This SHOULD be image references in the format defined by distribution/distribution.
+  // This SHOULD be a fully qualified reference name, without any assumed default registry. (e.g., registry.example.com/my-org/my-image:tag instead of my-org/my-image:tag).
+  // This SHOULD be the immediate image sharing zero-indexed layers with the image, such as from a Dockerfile FROM statement.
+  // This SHOULD NOT reference any other images used to generate the contents of the image (e.g., multi-stage Dockerfile builds).
+  // If the image.base.name annotation is specified, the image.base.digest annotation SHOULD be the digest of the manifest referenced by the image.ref.name annotation.
+  enum imageBaseName = "org.opencontainers.image.base.name";
 }
 
 struct Blob(T) {

@@ -5,6 +5,7 @@ import oras.protocol;
 import mir.deser.json;
 import mir.ser.json;
 import unit_threaded;
+import oras.data;
 
 @safe pure unittest {
   auto manifest = manifestJson.deserializeJson!Manifest;
@@ -19,8 +20,8 @@ import unit_threaded;
                                            Digest("sha256", "88aad6602e16761a658ae2b5f54ab257e12bb6cb365a65efbf95b976cd825c9a"),
                                            31532595)
                             ];
-  manifest.annotations.should == ["org.opencontainers.image.base.digest": "sha256:817cfe4672284dcbfee885b1a66094fd907630d610cab329114d036716be49ba",
-                                  "org.opencontainers.image.base.name": "docker.io/library/ubuntu:22.04"
+  manifest.annotations.should == [Annotations.imageBaseDigest: "sha256:817cfe4672284dcbfee885b1a66094fd907630d610cab329114d036716be49ba",
+                                  Annotations.imageBaseName: "docker.io/library/ubuntu:22.04"
                                   ];
 
 }
