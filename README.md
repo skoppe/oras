@@ -18,13 +18,16 @@ auto name = Name("org/name");
 ubyte[] bytes = [8,7,6,5,4,3,2,1];
 
 auto push = client.push(name, Tag("v1.2.3"), (ref session) {
-      session.pushLayer(bytes.toBlob.toAnnotatedLayer("application/octet-stream").withFilename("hex.bin"));
-      return session.finish();
+        auto layer = bytes.toBlob
+            .toAnnotatedLayer("application/octet-stream")
+            .withFilename("hex.bin");
+        session.pushLayer(layer);
+        return session.finish();
     })
     .get!(PushResult);
 
 auto pull = client.pull(name, Reference(result.digest), (ref session) {
-      return session.pullLayer(session.layers[0]);
+        return session.pullLayer(session.layers[0]);
     })
     .get!(BlobResponse!(Client.Transport.ByteStream));
 
