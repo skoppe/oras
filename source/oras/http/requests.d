@@ -60,7 +60,7 @@ struct Transport {
       return Response(TransportError(e));
     }
   }
-  private Request createRequest(string[Header] headers) const @trusted nothrow {
+  private Request createRequest(string[Header] headers) const @trusted {
     auto req = Request();
     req.useStreaming = true;
     req.sslSetVerifyPeer = config.sslSetVerifyPeer;
