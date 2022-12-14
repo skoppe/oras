@@ -10,14 +10,13 @@ struct Transport {
   alias ByteStream = .ByteStream;
   static struct Config {
     string host;
+    bool sslSetVerifyPeer;
+    uint verbosity; // 0,1,2,3 -- useful for debugging
   }
   private Config config;
   Response get(string path, string[Header] headers = null) const @trusted nothrow {
     try {
-      auto req = Request();
-      // req.verbosity = 3;
-      req.useStreaming = true;
-      req.addHeaders(headers.toHeaders);
+      auto req = createRequest(headers);
       auto res = req.get(getUrl(path));
       return Response(HttpResponse(res.code, res.toHeaders, ByteStream(res.receiveAsRange), res.contentLength));
     } catch (Exception e) {
@@ -26,8 +25,7 @@ struct Transport {
   }
   Response head(string path) const @trusted nothrow {
     try {
-      auto req = Request();
-      // req.verbosity = 3;
+      auto req = createRequest(null);
       auto res = req.execute("HEAD", getUrl(path));
       return Response(HttpResponse(res.code, res.toHeaders));
     } catch (Exception e) {
@@ -36,10 +34,7 @@ struct Transport {
   }
   Response put(T)(string path, T bytes = null, string[Header] headers = null) const @trusted nothrow {
     try {
-      auto req = Request();
-      req.useStreaming = true;
-      // req.verbosity = 3;
-      req.addHeaders(headers.toHeaders);
+      auto req = createRequest(headers);
       auto res = req.put(getUrl(path), bytes, "application/octet-stream");
       return Response(HttpResponse(res.code, res.toHeaders, ByteStream(res.receiveAsRange), res.contentLength));
     } catch (Exception e) {
@@ -48,10 +43,7 @@ struct Transport {
   }
   Response post(string path, string[Header] headers) const @trusted nothrow {
     try {
-      auto req = Request();
-      req.useStreaming = true;
-      // req.verbosity = 3;
-      req.addHeaders(headers.toHeaders);
+      auto req = createRequest(headers);
       string[string] query;
       auto res = req.post(getUrl(path), query);
       return Response(HttpResponse(res.code, res.toHeaders, ByteStream(res.receiveAsRange), res.contentLength));
@@ -61,15 +53,20 @@ struct Transport {
   }
   Response patch(T)(string path, T bytes, string[Header] headers) const @trusted nothrow {
     try {
-      auto req = Request();
-      req.useStreaming = true;
-      // req.verbosity = 3;
-      req.addHeaders(headers.toHeaders);
+      auto req = createRequest(headers);
       auto res = req.patch(getUrl(path), bytes, "application/octet-stream");
       return Response(HttpResponse(res.code, res.toHeaders, ByteStream(res.receiveAsRange), res.contentLength));
     } catch (Exception e) {
       return Response(TransportError(e));
     }
+  }
+  private Request createRequest(string[Header] headers) const @trusted nothrow {
+    auto req = Request();
+    req.useStreaming = true;
+    req.sslSetVerifyPeer = config.sslSetVerifyPeer;
+    req.verbosity = config.verbosity;
+    req.addHeaders(headers.toHeaders);
+    return req;
   }
   private string getUrl(string path) const @trusted nothrow {
     import std.algorithm : startsWith;
